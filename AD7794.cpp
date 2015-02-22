@@ -1,5 +1,5 @@
 /*
-Ad7799.cpp - Library for using the AD7799 ADC
+AD7794.cpp - Library for using the AD7794 ADC
 Created by Jaimy Juliano, December 28, 2010
 
 Assumes SPI has been already been initialized with:
@@ -8,7 +8,7 @@ Assumes SPI has been already been initialized with:
 */
 
 #include "WProgram.h"
-#include "Ad7799.h"
+#include "AD7794.h"
 #include "SPI.h"
 
 
@@ -61,12 +61,12 @@ byte ChannelClass::getGainBits()
   return gainBits; 
 }
 
-Ad7799::Ad7799(byte csPin)
+AD7794::AD7794(byte csPin)
 {
   pinMode(csPin, OUTPUT);
   CS = csPin;
   
-  vRef = 2.44; //!!! Need to make this set-able !!!!
+  vRef = 2.50; //!!! Need to make this set-able !!!!
   
   //Default register settings
   modeReg    = 0x2001; //Single conversion mode, Fadc = 470Hz
@@ -78,14 +78,14 @@ Ad7799::Ad7799(byte csPin)
   
 }
 
-void Ad7799::begin()
+void AD7794::begin()
 {
   reset();
   delay(2); //4 times the recomended period
   
   //Apply the defaults that were set up in the constructor
   //Should add a begin(,,) method that lets you override the defaults
-  for(byte i = 0; i < 3; i++){
+  for(byte i = 0; i < CHANNEL_COUNT-2; i++){ //<-- Channel count stuff needs to be handled better!!
     setActiveCh(i);
     writeModeReg();
     writeConfReg();
@@ -97,7 +97,7 @@ void Ad7799::begin()
 }
 ////////////////////////////////////////////////////////////////////////
 //Write 32 1's to reset the chip
-void Ad7799::reset()
+void AD7794::reset()
 {  
   digitalWrite(CS, LOW); //Assert CS 
   for(byte i=0;i<4;i++)
@@ -108,19 +108,19 @@ void Ad7799::reset()
 }
 
 //Sets bipolar/unipolar mode for currently selected channel
-void Ad7799::setBipolar(boolean isBipolar)
+void AD7794::setBipolar(boolean isBipolar)
 {    
   Channel[currentCh].isUnipolar = false;
   buildConfReg(currentCh);
   writeConfReg();  
 }
 
-void Ad7799::setInputBuffer(boolean isEnabled)
+void AD7794::setInputBuffer(boolean isEnabled)
 {
   //TODO: Something ;)
 }
 
-void Ad7799::setGain(byte g)
+void AD7794::setGain(byte g)
 {  
   Channel[currentCh].gain = g;
   
@@ -134,7 +134,7 @@ must be 0, the low nibble sets the mode (FS3->FS0)
 [EXAMPLE '\x01' = 470Hz]
 refer to datasheet for modes
 */
-void Ad7799::setUpdateRate(byte bitMask)
+void AD7794::setUpdateRate(byte bitMask)
 {
   modeReg &= 0xFF00; //Zero off low byte
   modeReg |= bitMask;
@@ -143,7 +143,7 @@ void Ad7799::setUpdateRate(byte bitMask)
   //TODO: Put table from datasheet in comments, in header file
 }
 
-void Ad7799::setConvMode(boolean isSingle)
+void AD7794::setConvMode(boolean isSingle)
 {
   if(isSingle == true){
     isSnglConvMode = true;
@@ -158,7 +158,7 @@ void Ad7799::setConvMode(boolean isSingle)
   writeModeReg();
 }
 
-unsigned long Ad7799::getConvResult()
+unsigned long AD7794::getConvResult()
 {
   byte inByte;
   unsigned long result = 0;
@@ -183,7 +183,7 @@ unsigned long Ad7799::getConvResult()
   return result;
 }
 
-float Ad7799::getVolts()
+float AD7794::getVolts()
 {
   //Lets the conversion result   
   unsigned long adcRaw = getConvResult();
@@ -197,7 +197,7 @@ float Ad7799::getVolts()
   }
 }
 
-void Ad7799::setActiveCh(byte ch)
+void AD7794::setActiveCh(byte ch)
 {   
   if(ch < CHANNEL_COUNT){ 
     currentCh = ch;
@@ -206,7 +206,7 @@ void Ad7799::setActiveCh(byte ch)
   }
 }
 
-void Ad7799::startConv()
+void AD7794::startConv()
 {
   //Write out the mode reg, but leave CS asserted (LOW)
   digitalWrite(CS,LOW);  
@@ -217,14 +217,14 @@ void Ad7799::startConv()
 
 
 //////// Private helper functions/////////////////
-void Ad7799::buildConfReg(byte ch)
+void AD7794::buildConfReg(byte ch)
 {
   confReg = (Channel[currentCh].getGainBits() << 8) | ch;
   bitWrite(confReg,12,Channel[currentCh].isUnipolar);
   bitWrite(confReg,4,Channel[currentCh].isBuffered);
 }
 
-void Ad7799::writeConfReg()
+void AD7794::writeConfReg()
 {
   digitalWrite(CS,LOW);  
   SPI.transfer(WRITE_CONF_REG);
@@ -233,7 +233,7 @@ void Ad7799::writeConfReg()
   digitalWrite(CS,HIGH);
 }
 
-void Ad7799::writeModeReg()
+void AD7794::writeModeReg()
 {
   digitalWrite(CS,LOW);  
   SPI.transfer(WRITE_MODE_REG);
